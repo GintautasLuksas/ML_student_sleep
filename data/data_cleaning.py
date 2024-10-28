@@ -1,54 +1,53 @@
-# src/data_cleaning.py
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-
 
 def load_data(file_path):
-    """Load the dataset from a specified file path.
+    """
+    Load the sleep data from a CSV file.
 
     Args:
-        file_path (str): The path to the CSV file containing the data.
+        file_path (str): The path to the CSV file.
 
     Returns:
-        DataFrame: A pandas DataFrame containing the loaded data.
+        pd.DataFrame: The loaded data as a pandas DataFrame.
     """
-    data = pd.read_csv(file_path)
-    return data
-
+    return pd.read_csv(file_path)
 
 def clean_data(data):
-    """Clean the dataset by handling missing values, encoding categorical features, and normalizing numerical columns if necessary.
+    """
+    Clean the sleep data by handling missing values and any necessary preprocessing steps.
 
     Args:
-        data (DataFrame): The raw data to be cleaned.
+        data (pd.DataFrame): The raw sleep data.
 
     Returns:
-        DataFrame: A cleaned DataFrame with encoded categorical variables.
+        pd.DataFrame: The cleaned sleep data.
     """
-    data = data.dropna()
-    categorical_columns = ['Age_Group', 'Gender', 'Socioeconomic_Status', 'School_Programs', 'Access_to_Counseling',
-                           'Substance_Education']
-    for column in categorical_columns:
-        le = LabelEncoder()
-        data[column] = le.fit_transform(data[column])
-    return data
 
+    data_cleaned = data.dropna()
+
+
+    data_cleaned = data_cleaned.drop_duplicates()
+
+    return data_cleaned
 
 def save_cleaned_data(data, output_path):
-    """Save the cleaned data to the specified output path.
+    """
+    Save the cleaned sleep data to a specified CSV file.
 
     Args:
-        data (DataFrame): The cleaned data to save.
-        output_path (str): The file path where the cleaned data will be saved.
+        data (pd.DataFrame): The cleaned data.
+        output_path (str): The path to save the cleaned data.
     """
     data.to_csv(output_path, index=False)
-    print(f"Cleaned data saved to {output_path}")
-
 
 if __name__ == "__main__":
-    """Load, clean, and save the dataset."""
-    input_file = "../data/youth_smoking_drug_data.csv"
-    output_file = "../data/processed/youth_smoking_drug_data_cleaned.csv"
+    """
+    Load, clean, and save the dataset for sleep analysis.
+    """
+    input_file = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\student_sleep_patterns.csv"
+    output_file = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\processed\student_sleep_patterns_cleaned.csv"
+
     data = load_data(input_file)
     cleaned_data = clean_data(data)
     save_cleaned_data(cleaned_data, output_file)
+    print(f"Cleaned data saved to {output_file}")

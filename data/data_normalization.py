@@ -1,68 +1,68 @@
-# src/data_preprocessing.py
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder
-from sklearn.compose import ColumnTransformer
+
+def load_data(file_path):
+    """Load the sleep data from a CSV file."""
+    return pd.read_csv(file_path)
+
+def normalize_data(data):
+    """Normalize the sleep data."""
+    # Drop Student_ID
+    data = data.drop(columns=['Student_ID'])
+
+    # Normalize Age (18 to 25)
+    data['Age'] = ((data['Age'] - 18) / (25 - 18)).round(3)
+
+    # Normalize University_Year (1st Year: 0, 2nd Year: 0.33, 3rd Year: 0.67, 4th Year: 1)
+    year_mapping = {'1st Year': 0, '2nd Year': 0.33, '3rd Year': 0.67, '4th Year': 1}
+    data['University_Year'] = data['University_Year'].map(year_mapping).round(3)
+
+    # One-hot encoding for Gender
+    data = pd.get_dummies(data, columns=['Gender'], drop_first=True)
+
+    # Normalize Sleep_Duration, Study_Hours, Screen_Time (using max values)
+    data['Sleep_Duration'] = (data['Sleep_Duration'] / 24).round(3)  # Assuming max is 24 hours
+    data['Study_Hours'] = (data['Study_Hours'] / 24).round(3)  # Assuming max is 24 hours
+    data['Screen_Time'] = (data['Screen_Time'] / 24).round(3)  # Assuming max is 24 hours
+
+    # Normalize Caffeine_Intake and Physical_Activity (assuming a reasonable max)
+    data['Caffeine_Intake'] = (data['Caffeine_Intake'] / 10).round(3)  # Assuming max is 10 cups
+    data['Physical_Activity'] = (data['Physical_Activity'] / 120).round(3)  # Assuming max is 120 minutes
+
+    # Create Sleep_Quality binary target
+    data['Sleep_Quality'] = data['Sleep_Quality'].apply(lambda x: 1 if x > 5 else 0)
+
+    # Calculate Sleep Hours on Weekdays
+    data['Weekday_Sleep_Start'] = data['Weekday_Sleep_Start'].apply(lambda x: int(x))
+    data['Weekday_Sleep_End'] = data['Weekday_Sleep_End'].apply(lambda x: int(x))
+    data['Sleep_Hours_Weekdays'] = (data['Weekday_Sleep_End'] - data['Weekday_Sleep_Start']).clip(lower=0) / 24
+    data['Sleep_Hours_Weekdays'] = data['Sleep_Hours_Weekdays'].round(3)  # Normalize and round
+
+    # Calculate Sleep Hours on Weekends
+    data['Weekend_Sleep_Start'] = data['Weekend_Sleep_Start'].apply(lambda x: int(x))
+    data['Weekend_Sleep_End'] = data['Weekend_Sleep_End'].apply(lambda x: int(x))
+    data['Sleep_Hours_Weekends'] = (data['Weekend_Sleep_End'] - data['Weekend_Sleep_Start']).clip(lower=0) / 24
+    data['Sleep_Hours_Weekends'] = data['Sleep_Hours_Weekends'].round(3)  # Normalize and round
+
+    # Normalize Sleep Start time to binary
+    data['Sleep_Start_Binary_Weekdays'] = data['Weekday_Sleep_Start'].apply(lambda x: 1 if 19 <= x <= 23 else 0)
+    data['Sleep_Start_Binary_Weekends'] = data['Weekend_Sleep_Start'].apply(lambda x: 1 if 19 <= x <= 23 else 0)
+
+    # Drop original sleep start and end columns
+    data = data.drop(columns=['Weekday_Sleep_Start', 'Weekday_Sleep_End', 'Weekend_Sleep_Start', 'Weekend_Sleep_End'])
+
+    return data
 
 
-def preprocess_data(file_path):
-    """Preprocess the dataset by applying normalization to continuous features and one-hot encoding to categorical features,
-    rounding numerical results to three decimal places.
-
-    Args:
-        file_path (str): Path to the cleaned CSV file.
-
-    Returns:
-        DataFrame: The preprocessed DataFrame with normalized continuous features and one-hot encoded categorical features.
-    """
-    data = pd.read_csv(file_path)
-
-    # Continuous features including the new ones 'Year', 'Age_Group', and 'Parental_Supervision'
-    continuous_features = ['Smoking_Prevalence', 'Drug_Experimentation', 'Peer_Influence',
-                           'Family_Background', 'Mental_Health', 'Community_Support', 'Media_Influence',
-                           'Year', 'Parental_Supervision']
-
-    scaler = MinMaxScaler()
-
-    # Categorical features
-    categorical_features = ['Gender', 'Socioeconomic_Status']
-
-    # One-hot encoder for categorical features
-    one_hot_encoder = OneHotEncoder(sparse_output=False, drop='first')
-
-    # Label encoding 'Age_Group'
-    data['Age_Group'] = LabelEncoder().fit_transform(data['Age_Group'])
-
-    # Binary features (No transformation needed for these)
-    binary_features = ['School_Programs', 'Access_to_Counseling', 'Substance_Education']
-
-    # Preprocessing pipeline
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('scaler', scaler, continuous_features),
-            ('onehot', one_hot_encoder, categorical_features)
-        ],
-        remainder='passthrough'  # Keep other features (like binary) unchanged
-    )
-
-    # Apply transformations
-    data_transformed = preprocessor.fit_transform(data)
-
-    # Get transformed feature names
-    feature_names = preprocessor.get_feature_names_out()
-
-    # Create DataFrame with the preprocessed data
-    data_preprocessed = pd.DataFrame(data_transformed, columns=feature_names).round(3)
-
-    return data_preprocessed
-
+def save_normalized_data(data, output_path):
+    """Save the normalized sleep data to a specified CSV file."""
+    data.to_csv(output_path, index=False)
 
 if __name__ == "__main__":
-    """Load, preprocess, and save the dataset with normalization and one-hot encoding applied to appropriate features,
-    rounding the results to three decimal places."""
-    input_file = "../data/processed/youth_smoking_drug_data_cleaned.csv"
-    output_file = "../data/processed/youth_smoking_drug_data_final_preprocessed.csv"
+    """Load, normalize, and save the dataset for sleep analysis."""
+    input_file = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\processed\student_sleep_patterns_cleaned.csv"
+    output_file = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\processed\student_sleep_patterns_processed.csv"
 
-    preprocessed_data = preprocess_data(input_file)
-
-    preprocessed_data.to_csv(output_file, index=False)
-    print("Data preprocessing completed and saved to final file.")
+    data = load_data(input_file)
+    normalized_data = normalize_data(data)
+    save_normalized_data(normalized_data, output_file)
+    print(f"Normalized data saved to {output_file}")
