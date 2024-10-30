@@ -1,93 +1,84 @@
 import pandas as pd
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_score
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, confusion_matrix
-from imblearn.over_sampling import SMOTE
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def load_data(file_path):
-    """
-    Load the sleep data from a CSV file.
-
-    Args:
-        file_path (str): The path to the CSV file.
-
-    Returns:
-        pd.DataFrame: The loaded data as a pandas DataFrame.
-    """
+    """Load the sleep data from a CSV file."""
     return pd.read_csv(file_path)
 
-def train_decision_tree(data):
-    """
-    Train a Decision Tree Classifier on the binary 'Sleep_Quality'.
 
-    Args:
-        data (pd.DataFrame): The processed sleep data.
-
-    Returns:
-        DecisionTreeClassifier: The trained model.
-        pd.Series: The predictions made on the test set.
-    """
+def train_decision_tree_with_cv(data):
+    """Train a Decision Tree classifier with hyperparameter tuning and cross-validation, and analyze feature importance."""
     X = data.drop(columns=['Sleep_Quality'])
     y = data['Sleep_Quality']
 
+    param_grid = {
+        'max_depth': [None, 10, 20, 30],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+    }
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Cross-validation setup
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    dt = DecisionTreeClassifier(random_state=42)
 
+    # Grid search for hyperparameter tuning
+    grid_search = GridSearchCV(estimator=dt, param_grid=param_grid,
+                               cv=cv, scoring='accuracy',
+                               n_jobs=-1, verbose=1)
 
-    smote = SMOTE(random_state=42)
-    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+    grid_search.fit(X, y)
+    best_model = grid_search.best_estimator_
+    best_params = grid_search.best_params_
+    print(f"Best parameters: {best_params}")
+    cv_scores = cross_val_score(best_model, X, y, cv=cv)
+    print(f"Cross-validated accuracy: {np.mean(cv_scores):.3f} ± {np.std(cv_scores):.3f}")
 
-    model = DecisionTreeClassifier(random_state=42)
+    best_model.fit(X, y)
+    y_pred = best_model.predict(X)
+    print("Final Classification Report on Full Dataset:\n")
+    print(classification_report(y, y_pred))
 
+    cm = confusion_matrix(y, y_pred)
+    print("Confusion Matrix:\n", cm)
 
-    model.fit(X_train_resampled, y_train_resampled)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Bad', 'Good'],
+                yticklabels=['Bad', 'Good'])
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.title('Confusion Matrix')
+    plt.show()
 
-    # Make predictions on the test set
-    predictions = model.predict(X_test)
+    # Feature importance analysis
+    feature_importances = best_model.feature_importances_
+    features = X.columns
+    feature_importance_df = pd.DataFrame({'Feature': features, 'Importance': feature_importances})
+    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
 
-    return model, predictions, y_test
+    print("\nFeature Importances:")
+    print(feature_importance_df)
 
-def evaluate_model(y_true, y_pred):
-    """
-    Evaluate the performance of the trained model.
+    # Plotting feature importances
+    plt.figure(figsize=(10, 8))
+    sns.barplot(data=feature_importance_df, x='Importance', y='Feature', palette='viridis')
+    plt.title('Feature Importance')
+    plt.xlabel('Importance')
+    plt.ylabel('Feature')
+    plt.show()
 
-    Args:
-        y_true (pd.Series): The true target values.
-        y_pred (pd.Series): The predicted target values.
-    """
-    print("Confusion Matrix:")
-    print(confusion_matrix(y_true, y_pred))
-    print("\nClassification Report:")
-    print(classification_report(y_true, y_pred))
+    return best_model
 
-def cross_validate_model(data, model):
-    """
-    Perform cross-validation on the model using the provided data.
-
-    Args:
-        data (pd.DataFrame): The processed sleep data.
-        model: The model to evaluate.
-    """
-    X = data.drop(columns=['Sleep_Quality'])
-    y = data['Sleep_Quality']
-
-    scores = cross_val_score(model, X, y, cv=5)
-    print("\nCross-Validation Scores:")
-    print(scores)
-    print(f"Mean Cross-Validation Score: {scores.mean():.4f}")
 
 if __name__ == "__main__":
+    """Load data, train the Decision Tree classifier with hyperparameter tuning, and print the results."""
+    input_file = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\processed\student_sleep_patterns_processed.csv"
 
-    input_file_normalized = r"C:\Users\BossJore\PycharmProjects\ML_steudent_sleep\data\processed\student_sleep_patterns_processed.csv"
-
-
-    normalized_data = load_data(input_file_normalized)
-
-
-    model, predictions, y_test = train_decision_tree(normalized_data)
-
-
-    evaluate_model(y_test, predictions)
-
-
-    cross_validate_model(normalized_data, model)
+    data = load_data(input_file)
+    best_model = train_decision_tree_with_cv(data)

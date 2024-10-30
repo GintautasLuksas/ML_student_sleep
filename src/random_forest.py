@@ -13,10 +13,9 @@ def load_data(file_path):
 
 
 def train_random_forest_with_cv(data):
-    """Train a Random Forest classifier with hyperparameter tuning and cross-validation."""
+    """Train a Random Forest classifier with hyperparameter tuning and cross-validation, and analyze feature importance."""
     X = data.drop(columns=['Sleep_Quality'])
     y = data['Sleep_Quality']
-
 
     param_grid = {
         'n_estimators': [10, 20],
@@ -25,21 +24,16 @@ def train_random_forest_with_cv(data):
         'min_samples_leaf': [1, 2, 4],
     }
 
-    '''Cross validation'''
+    # Cross-validation setup
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
-
     rf = RandomForestClassifier(random_state=42)
 
-    '''Setup Grid_search'''
+    # Grid search for hyperparameter tuning
     grid_search = GridSearchCV(estimator=rf, param_grid=param_grid,
                                cv=cv, scoring='accuracy',
                                n_jobs=-1, verbose=1)
 
-
     grid_search.fit(X, y)
-
-
     best_model = grid_search.best_estimator_
     best_params = grid_search.best_params_
     print(f"Best parameters: {best_params}")
@@ -54,7 +48,6 @@ def train_random_forest_with_cv(data):
     cm = confusion_matrix(y, y_pred)
     print("Confusion Matrix:\n", cm)
 
-
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=['Bad', 'Good'],
@@ -62,6 +55,23 @@ def train_random_forest_with_cv(data):
     plt.ylabel('Actual')
     plt.xlabel('Predicted')
     plt.title('Confusion Matrix')
+    plt.show()
+
+    # Feature importance analysis
+    feature_importances = best_model.feature_importances_
+    features = X.columns
+    feature_importance_df = pd.DataFrame({'Feature': features, 'Importance': feature_importances})
+    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+    print("\nFeature Importances:")
+    print(feature_importance_df)
+
+    # Plotting feature importances
+    plt.figure(figsize=(10, 8))
+    sns.barplot(data=feature_importance_df, x='Importance', y='Feature', palette='viridis')
+    plt.title('Feature Importance')
+    plt.xlabel('Importance')
+    plt.ylabel('Feature')
     plt.show()
 
     return best_model
